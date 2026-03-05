@@ -224,8 +224,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Building2 className="w-6 h-6 text-blue-400" />
+              <div className="mb-4">
                 <span className="text-lg font-bold text-white">LifeSci Exchange</span>
               </div>
               <p className="text-sm text-gray-400">The global B2B marketplace connecting life sciences companies worldwide</p>

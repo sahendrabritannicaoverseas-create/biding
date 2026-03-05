@@ -64,11 +64,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error.message?.includes('Fetch is aborted') || error.message?.includes('AbortError')) {
           return;
         }
-        throw error;
+        // Log the full Supabase error details for debugging
+        console.error('Supabase profile fetch error:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        // Don't throw - allow app to continue without profile (e.g. RLS blocked)
+        setProfile(null);
+        return;
       }
+
       setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
+    } catch (error: any) {
+      console.error('Error fetching profile:', error?.message || JSON.stringify(error));
     } finally {
       setLoading(false);
     }

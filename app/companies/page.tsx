@@ -14,11 +14,11 @@ interface Company {
 }
 
 const companyTypeConfig = {
-  sponsor: { label: 'Pharma & Biotech', icon: Microscope, color: 'text-blue-600 bg-blue-50' },
-  cro: { label: 'CROs', icon: FileText, color: 'text-green-600 bg-green-50' },
-  manufacturer: { label: 'Manufacturers', icon: Factory, color: 'text-orange-600 bg-orange-50' },
-  lab: { label: 'Testing Labs', icon: Sparkles, color: 'text-yellow-600 bg-yellow-50' },
-  distributor: { label: 'Distributors', icon: TruckIcon, color: 'text-cyan-600 bg-cyan-50' },
+  sponsor: { label: 'Pharma & Biotech', icon: Microscope, iconColor: 'text-blue-600', bgColor: 'bg-blue-50' },
+  cro: { label: 'CROs', icon: FileText, iconColor: 'text-green-600', bgColor: 'bg-green-50' },
+  manufacturer: { label: 'Manufacturers', icon: Factory, iconColor: 'text-orange-600', bgColor: 'bg-orange-50' },
+  lab: { label: 'Testing Labs', icon: Sparkles, iconColor: 'text-yellow-600', bgColor: 'bg-yellow-50' },
+  distributor: { label: 'Distributors', icon: TruckIcon, iconColor: 'text-cyan-600', bgColor: 'bg-cyan-50' },
 };
 
 export default function CompaniesPage() {
@@ -67,15 +67,48 @@ export default function CompaniesPage() {
           </div>
         </div>
       </nav>
-      <div className="bg-gradient-to-br from-blue-600 to-blue-700 py-12">
+      <div className="bg-linear-to-br from-blue-600 to-blue-700 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold text-white mb-4">Verified Company Directory</h1>
           <p className="text-xl text-blue-100 mb-8">Browse and connect with verified life sciences companies worldwide</p>
           <div className="bg-white rounded-xl p-6 shadow-lg">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="relative"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" /><input type="text" placeholder="Search companies..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
-              <div className="relative"><Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" /><select value={selectedType} onChange={e => setSelectedType(e.target.value as CompanyType)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"><option value="all">All Company Types</option><option value="sponsor">Pharma & Biotech</option><option value="cro">CROs</option><option value="manufacturer">Manufacturers</option><option value="lab">Testing Labs</option><option value="distributor">Distributors</option></select></div>
-              <div className="relative"><MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" /><select value={selectedCountry} onChange={e => setSelectedCountry(e.target.value)} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"><option value="all">All Countries</option>{uniqueCountries.map(country => <option key={country} value={country}>{country}</option>)}</select></div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500 w-5 h-5" />
+                <input 
+                  type="text" 
+                  placeholder="Search companies..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900" 
+                />
+              </div>
+              <div className="relative">
+                <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500 w-5 h-5" />
+                <select 
+                  value={selectedType} 
+                  onChange={e => setSelectedType(e.target.value as CompanyType)} 
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-gray-900"
+                >
+                  <option value="all">All Company Types</option>
+                  <option value="sponsor">Pharma & Biotech</option>
+                  <option value="cro">CROs</option>
+                  <option value="manufacturer">Manufacturers</option>
+                  <option value="lab">Testing Labs</option>
+                  <option value="distributor">Distributors</option>
+                </select>
+              </div>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-500 w-5 h-5" />
+                <select 
+                  value={selectedCountry} 
+                  onChange={e => setSelectedCountry(e.target.value)} 
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-gray-900"
+                >
+                  <option value="all">All Countries</option>
+                  {uniqueCountries.map(country => <option key={country} value={country}>{country}</option>)}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -96,7 +129,7 @@ export default function CompaniesPage() {
                   return (
                     <div key={company.id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition">
                       <div className="flex items-start justify-between mb-4">
-                        <div className={`${config.color} p-3 rounded-lg`}><Icon className="w-6 h-6" /></div>
+                        <div className={`${config.bgColor} p-3 rounded-lg`}><Icon className={`w-6 h-6 ${config.iconColor}`} /></div>
                         <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full flex items-center"><Award className="w-3 h-3 mr-1" />Verified</span>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 mb-2">{company.company_name}</h3>

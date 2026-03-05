@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import {
   Building2,
   Microscope,
@@ -32,35 +31,15 @@ export default function HomePage() {
 
   const fetchStats = async () => {
     try {
-      const [croRes, sponsorRes, mfgRes, labRes, distRes, rfpRes] = await Promise.all([
-        supabase.from('cro_companies').select('id, country, total_projects', { count: 'exact' }).eq('verification_status', 'verified'),
-        supabase.from('sponsor_companies').select('id, country', { count: 'exact' }).eq('verification_status', 'verified'),
-        supabase.from('manufacturer_companies').select('id, country, total_partnerships', { count: 'exact' }).eq('verification_status', 'verified'),
-        supabase.from('lab_companies').select('id, country, total_projects', { count: 'exact' }).eq('verification_status', 'verified'),
-        supabase.from('distributor_companies').select('id, country, total_deals', { count: 'exact' }).eq('verification_status', 'verified'),
-        supabase.from('rfps').select('id', { count: 'exact' }).eq('status', 'active').eq('is_invite_only', false),
-      ]);
-
-      const totalCompanies = (croRes.count || 0) + (sponsorRes.count || 0) + (mfgRes.count || 0) + (labRes.count || 0) + (distRes.count || 0);
-
-      const allCountries = new Set([
-        ...(croRes.data?.map(c => c.country) || []),
-        ...(sponsorRes.data?.map(c => c.country) || []),
-        ...(mfgRes.data?.map(c => c.country) || []),
-        ...(labRes.data?.map(c => c.country) || []),
-        ...(distRes.data?.map(c => c.country) || []),
-      ]);
-
-      const totalProjects = (croRes.data?.reduce((sum, c) => sum + (c.total_projects || 0), 0) || 0) +
-        (labRes.data?.reduce((sum, c) => sum + (c.total_projects || 0), 0) || 0) +
-        (mfgRes.data?.reduce((sum, c) => sum + (c.total_partnerships || 0), 0) || 0) +
-        (distRes.data?.reduce((sum, c) => sum + (c.total_deals || 0), 0) || 0);
-
+      // Use server-side API route to bypass browser-side RLS policy recursion
+      const res = await fetch('/api/stats');
+      if (!res.ok) return;
+      const data = await res.json();
       setStats({
-        companies: totalCompanies,
-        projects: totalProjects,
-        countries: allCountries.size,
-        activeRFPs: rfpRes.count || 0,
+        companies: data.companies || 0,
+        projects: data.projects || 0,
+        countries: data.countries || 0,
+        activeRFPs: data.activeRFPs || 0,
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -115,7 +94,7 @@ export default function HomePage() {
         </div>
       </nav>
 
-      <section className="py-20 bg-gradient-to-br from-blue-50 via-white to-slate-50">
+      <section className="py-20 bg-linear-to-br from-blue-50 via-white to-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
             <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
@@ -210,7 +189,7 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-slate-50 rounded-2xl p-8 border border-gray-200">
+            <div className="bg-linear-to-br from-blue-50 to-slate-50 rounded-2xl p-8 border border-gray-200">
               <div className="space-y-6">
                 {[
                   { title: 'Company Verification', text: 'All companies undergo KYC verification and document validation before accessing the platform' },

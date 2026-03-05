@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
 import { Building2, Search, Filter, MapPin, Clock, DollarSign, FileText, Microscope, Factory, Sparkles, TruckIcon, Users, Calendar } from 'lucide-react';
 
 interface RFP {
@@ -17,6 +16,7 @@ type CategoryFilter = 'all' | 'clinical_trial' | 'manufacturing' | 'lab_testing'
 export default function MarketplacePage() {
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
 
@@ -24,12 +24,27 @@ export default function MarketplacePage() {
 
   const fetchRFPs = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data, error } = await supabase.from('rfps').select('*').eq('status', 'active').eq('is_invite_only', false).order('created_at', { ascending: false });
-      if (error) throw error;
-      setRfps(data || []);
-    } catch (error) { console.error('Error fetching RFPs:', error); } finally { setLoading(false); }
+      // Use server-side API route to bypass browser-side RLS policy issues
+      const res = await fetch('/api/rfps');
+      const json = await res.json();
+
+      if (!res.ok) {
+        console.error('API error:', json);
+        setError(json.error || 'Failed to load opportunities');
+        return;
+      }
+
+      setRfps(json.rfps || []);
+    } catch (err: any) {
+      console.error('Error fetching RFPs:', err.message);
+      setError('Failed to load opportunities. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   const filteredRFPs = rfps.filter(rfp => {
     const matchesSearch = rfp.title.toLowerCase().includes(searchQuery.toLowerCase()) || rfp.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -64,7 +79,7 @@ export default function MarketplacePage() {
           </div>
         </div>
       </nav>
-      <div className="bg-gradient-to-br from-blue-600 to-blue-700 py-12">
+      <div className="bg-linear-to-br from-blue-600 to-blue-700 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold text-white mb-4">Global Opportunities Marketplace</h1>
           <p className="text-xl text-blue-100 mb-8">Discover and bid on requirements from verified companies worldwide</p>
@@ -79,6 +94,13 @@ export default function MarketplacePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {loading ? (
           <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>
+        ) : error ? (
+          <div className="text-center py-16">
+            <FileText className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <p className="text-xl text-gray-700 font-semibold mb-2">Unable to load opportunities</p>
+            <p className="text-gray-500 mb-6">{error}</p>
+            <button onClick={fetchRFPs} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold">Try Again</button>
+          </div>
         ) : (
           <>
             <div className="mb-6 flex justify-between items-center"><p className="text-gray-600">Showing <span className="font-semibold">{filteredRFPs.length}</span> active opportunities</p><div className="text-sm text-gray-500">Sign in to submit bids and access full details</div></div>

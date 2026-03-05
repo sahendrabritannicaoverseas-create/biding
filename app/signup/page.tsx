@@ -31,7 +31,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-xl mb-4">
@@ -49,7 +49,7 @@ export default function SignupPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Company Type</label>
             <select value={role} onChange={(e) => setRole(e.target.value as any)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
               <option value="sponsor">Pharma / Biotech (Post Requirements)</option>
               <option value="cro">CRO / Research Organization (Bid on Projects)</option>
               <option value="manufacturer">Manufacturer (Offer Manufacturing Services)</option>
@@ -60,19 +60,19 @@ export default function SignupPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
             <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               placeholder="John Doe" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               placeholder="you@company.com" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
             <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               placeholder="Minimum 6 characters" minLength={6} />
           </div>
           <button type="submit" disabled={loading}

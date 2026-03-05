@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Layout } from '@/components/Layout';
-import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 import { FileText, Search, Filter, Calendar, MapPin, ArrowRight } from 'lucide-react';
 
@@ -20,15 +19,17 @@ function RFPListContent() {
 
   const fetchRFPs = async () => {
     try {
-      let query = supabase.from('rfps').select('*').order('created_at', { ascending: false });
-      if (profile?.role === 'sponsor') {
-        query = query.eq('sponsor_company_id', profile.company_id);
-      } else if (['cro', 'manufacturer', 'lab', 'distributor'].includes(profile?.role || '')) {
-        query = query.eq('status', 'active').eq('is_invite_only', false);
+      // Use server-side API to bypass browser-side RLS recursion error
+      const params = profile?.role === 'sponsor' && profile?.company_id
+        ? `?sponsor_company_id=${profile.company_id}`
+        : '';
+      const res = await fetch(`/api/rfps/list${params}`);
+      const json = await res.json();
+      if (!res.ok) {
+        console.error('Error fetching RFPs:', json.error);
+        return;
       }
-      const { data, error } = await query;
-      if (error) throw error;
-      setRfps(data || []);
+      setRfps(json.rfps || []);
     } catch (error) {
       console.error('Error fetching RFPs:', error);
     } finally {

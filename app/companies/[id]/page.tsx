@@ -83,7 +83,7 @@ export default function CompanyProfilePage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {/* Hero Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-12">
+          <div className="bg-linear-to-r from-blue-600 to-blue-700 px-8 py-12">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-4 mb-4">

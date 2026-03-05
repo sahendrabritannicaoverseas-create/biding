@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Layout } from '@/components/Layout';
@@ -151,6 +151,7 @@ function RFPDetailsContent({ id }: { id: string }) {
   );
 }
 
-export default function RFPDetailsPage({ params }: { params: { id: string } }) {
-  return <ProtectedRoute><RFPDetailsContent id={params.id} /></ProtectedRoute>;
+export default function RFPDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return <ProtectedRoute><RFPDetailsContent id={id} /></ProtectedRoute>;
 }

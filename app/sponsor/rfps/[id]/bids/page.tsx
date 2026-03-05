@@ -1,10 +1,7 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Layout } from '@/components/Layout';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, DollarSign, Clock, CheckCircle, Award, AlertCircle, Eye } from 'lucide-react';
@@ -105,6 +102,7 @@ function RFPBidReviewContent({ id }: { id: string }) {
   );
 }
 
-export default function RFPBidReviewPage({ params }: { params: { id: string } }) {
-  return <ProtectedRoute allowedRoles={['sponsor']}><RFPBidReviewContent id={params.id} /></ProtectedRoute>;
+export default function RFPBidReviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  return <ProtectedRoute allowedRoles={['sponsor']}><RFPBidReviewContent id={id} /></ProtectedRoute>;
 }

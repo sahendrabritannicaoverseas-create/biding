@@ -19,7 +19,8 @@ import {
   MoreVertical,
   Activity,
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
 import Link from 'next/link';
 

@@ -21,31 +21,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    let mounted = true;
+
+    // Consolidate both initial session and change listener into one subscriber
+    // onAuthStateChange fires with INITIAL_SESSION immediately upon subscription in recent versions
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+
       if (session?.user) {
-        fetchProfile(session.user.id);
+        setUser(session.user);
+        // Only fetch profile if it's missing or if it's a new user
+        await fetchProfile(session.user.id);
       } else {
+        setUser(null);
+        setProfile(null);
         setLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setLoading(false);
-        }
-      })();
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchProfile = async (userId: string) => {
+    // Basic deduplication: if we already have this profile, don't fetch it again
+    if (profile && profile.id === userId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('user_profiles')
@@ -53,7 +59,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        // Silently handle abort errors which are common during rapid dev refreshes
+        if (error.message?.includes('Fetch is aborted') || error.message?.includes('AbortError')) {
+          return;
+        }
+        throw error;
+      }
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);

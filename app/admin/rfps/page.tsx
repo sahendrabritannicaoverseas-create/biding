@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -71,44 +70,24 @@ export default function AdminRFPsPage() {
   const fetchRFPs = async () => {
     setLoading(true);
     try {
-      // Fetch RFPs without the join first to avoid RLS recursion issues
-      const { data: rfpData, error: rfpError } = await supabase
-        .from('rfps')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Get the current session token to pass to the API route
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (rfpError) {
-        console.error('Supabase error fetching RFPs:', rfpError);
-        throw rfpError;
-      }
+      const res = await fetch('/api/rfps?admin=true', {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        cache: 'no-store',
+      });
 
-      if (!rfpData || rfpData.length === 0) {
-        setRfps([]);
+      if (!res.ok) {
+        console.error('Failed to fetch RFPs:', res.status);
         return;
       }
 
-      // Collect unique sponsor_company_ids
-      const sponsorIds = [...new Set(rfpData.map((r: any) => r.sponsor_company_id).filter(Boolean))];
-
-      let sponsorMap: Record<string, string> = {};
-      if (sponsorIds.length > 0) {
-        const { data: sponsorData } = await supabase
-          .from('sponsor_companies')
-          .select('id, company_name')
-          .in('id', sponsorIds);
-
-        if (sponsorData) {
-          sponsorData.forEach((s: any) => { sponsorMap[s.id] = s.company_name; });
-        }
-      }
-
-      // Merge sponsor names into RFP records
-      const merged = rfpData.map((rfp: any) => ({
-        ...rfp,
-        sponsor: rfp.sponsor_company_id ? { company_name: sponsorMap[rfp.sponsor_company_id] || '—' } : null,
-      }));
-
-      setRfps(merged);
+      const { rfps } = await res.json();
+      setRfps(rfps || []);
     } catch (error: any) {
       console.error('Error fetching RFPs:', error.message || error);
     } finally {
@@ -119,13 +98,20 @@ export default function AdminRFPsPage() {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const { error } = await supabase
-        .from('rfps')
-        .update({ status })
-        .eq('id', id);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
 
-      if (error) throw error;
-      
+      const res = await fetch('/api/rfps', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({ id, status }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update status');
+
       setRfps(prev => prev.map(r => r.id === id ? { ...r, status } : r));
     } catch (error) {
       console.error('Error updating RFP status:', error);
@@ -177,7 +163,6 @@ export default function AdminRFPsPage() {
             ))}
           </div>
 
-
           {/* Filter Bar */}
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -185,7 +170,7 @@ export default function AdminRFPsPage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 w-4 h-4" />
                 <input 
                   type="text" 
-                  placeholder="Search by title or RFP number..." 
+                  placeholder="Search by title or RFP number..."  
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-slate-300"

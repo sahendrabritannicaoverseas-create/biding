@@ -12,6 +12,8 @@ function OnboardingContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [wordCount, setWordCount] = useState(0);
+  const MAX_WORDS = 30;
   const [formData, setFormData] = useState({
     companyName: '',
     country: '',
@@ -84,7 +86,7 @@ function OnboardingContent() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 placeholder="United States" />
             </div>
-            <div>
+            <div>30
               <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
               <input type="url" value={formData.website}
                 onChange={(e) => setFormData({ ...formData, website: e.target.value })}
@@ -113,14 +115,28 @@ function OnboardingContent() {
                 placeholder="+1 (555) 123-4567" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Company Description</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Company Description</label>
+                <span className={`text-xs font-semibold ${wordCount > MAX_WORDS ? 'text-red-500' : 'text-gray-400'}`}>
+                  {wordCount} / {MAX_WORDS} words
+                </span>
+              </div>
               <textarea rows={4} value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                placeholder="Brief description of your company and services..." />
+                onChange={(e) => {
+                  const words = e.target.value.trim() === '' ? [] : e.target.value.trim().split(/\s+/);
+                  setWordCount(words.length);
+                  setFormData({ ...formData, description: e.target.value });
+                }}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
+                  wordCount > MAX_WORDS ? 'border-red-400 bg-red-50' : 'border-gray-300'
+                }`}
+                placeholder="Brief description of your company and services (max 30 words)..." />
+              {wordCount > MAX_WORDS && (
+                <p className="text-xs text-red-500 mt-1">⚠ Please keep the description under {MAX_WORDS} words.</p>
+              )}
             </div>
           </div>
-          <button type="submit" disabled={loading}
+          <button type="submit" disabled={loading || wordCount > MAX_WORDS}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
             {loading ? 'Creating profile...' : 'Complete Setup'}
           </button>

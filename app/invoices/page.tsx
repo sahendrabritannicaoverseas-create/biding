@@ -1,9 +1,7 @@
 'use client';
-
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Layout } from '@/components/Layout';
 import { Construction } from 'lucide-react';
-
 export default function InvoicesPage() {
   return (
     <ProtectedRoute allowedRoles={['cro', 'manufacturer', 'lab', 'distributor']}>

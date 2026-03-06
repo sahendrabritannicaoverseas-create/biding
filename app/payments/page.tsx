@@ -3,7 +3,6 @@
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Layout } from '@/components/Layout';
 import { Construction } from 'lucide-react';
-
 export default function PaymentsPage() {
   return (
     <ProtectedRoute>

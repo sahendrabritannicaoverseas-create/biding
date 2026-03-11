@@ -24,7 +24,10 @@ import {
   Layers,
   MessageSquare,
   Lock,
-  XCircle
+  XCircle,
+  Upload,
+  FileCode,
+  Settings
 } from 'lucide-react';
 
 interface Project {
@@ -41,6 +44,22 @@ interface Project {
   cro_company_id: string;
   sponsor?: { company_name: string };
   cro?: { company_name: string };
+  rfp?: {
+    study_type: string;
+    molecule_type: string;
+    description: string;
+    target_geography: string[];
+    regulatory_authorities: string[];
+  };
+}
+
+interface ProjectDocument {
+  id: string;
+  file_name: string;
+  document_type: string;
+  file_url: string;
+  created_at: string;
+  uploaded_by_name?: string;
 }
 
 interface Milestone {
@@ -62,8 +81,11 @@ export default function ProjectDetailsPage() {
   const { profile } = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [documents, setDocuments] = useState<ProjectDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'milestones' | 'specifications' | 'documents'>('milestones');
 
   useEffect(() => {
     if (id) fetchProjectData();
@@ -77,7 +99,14 @@ export default function ProjectDetailsPage() {
         .select(`
           *,
           sponsor:sponsor_company_id (company_name),
-          cro:cro_company_id (company_name)
+          cro:cro_company_id (company_name),
+          rfp:rfp_id (
+            study_type,
+            molecule_type,
+            description,
+            target_geography,
+            regulatory_authorities
+          )
         `)
         .eq('id', id)
         .single();
@@ -93,6 +122,17 @@ export default function ProjectDetailsPage() {
 
       if (milestonesError) throw milestonesError;
       setMilestones(milestonesData || []);
+
+      // Fetch Documents
+      const { data: docsData, error: docsError } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('entity_id', id)
+        .eq('entity_type', 'project')
+        .order('created_at', { ascending: false });
+
+      if (docsError) throw docsError;
+      setDocuments(docsData || []);
     } catch (error) {
       console.error('Error fetching project data:', error);
     } finally {
@@ -139,6 +179,53 @@ export default function ProjectDetailsPage() {
       alert('Failed to update milestone status');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !project) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${project.id}/${Date.now()}.${fileExt}`;
+      const filePath = `project-docs/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      const newDoc = {
+        entity_type: 'project',
+        entity_id: project.id,
+        document_type: 'protocol',
+        file_name: file.name,
+        file_url: urlData.publicUrl,
+        uploaded_by: profile?.id,
+        created_at: new Date().toISOString()
+      };
+
+      const { data: insertedDoc, error: insertError } = await supabase
+        .from('documents')
+        .insert([newDoc])
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      setDocuments(prev => [insertedDoc, ...prev]);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload document');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -229,126 +316,256 @@ export default function ProjectDetailsPage() {
                 </div>
               </div>
 
+              {/* Tabs Navigation */}
+              <div className="flex items-center space-x-1 bg-slate-100 p-1.5 rounded-2xl w-fit">
+                <button 
+                  onClick={() => setActiveTab('milestones')}
+                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition ${activeTab === 'milestones' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  Milestones
+                </button>
+                <button 
+                  onClick={() => setActiveTab('specifications')}
+                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition ${activeTab === 'specifications' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  Required Design
+                </button>
+                <button 
+                  onClick={() => setActiveTab('documents')}
+                  className={`px-6 py-2.5 rounded-xl text-sm font-bold transition ${activeTab === 'documents' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  Repository
+                </button>
+              </div>
+
               {/* Milestones Flow */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tight flex items-center">
-                    <Layers className="w-6 h-6 mr-3 text-blue-600" />
-                    Milestone Governance
-                  </h3>
-                  <div className="flex items-center space-x-2 text-xs font-bold text-gray-400">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>LIVE UPDATES</span>
+              {activeTab === 'milestones' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-2xl font-black text-gray-900 tracking-tight flex items-center">
+                      <Layers className="w-6 h-6 mr-3 text-blue-600" />
+                      Milestone Governance
+                    </h3>
+                    <div className="flex items-center space-x-2 text-xs font-bold text-gray-400">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span>LIVE UPDATES</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {milestones.length === 0 ? (
+                      <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center text-gray-500 font-medium italic">
+                        No milestones mapped to this project registry.
+                      </div>
+                    ) : (
+                      milestones.map((milestone) => (
+                        <div 
+                          key={milestone.id} 
+                          className={`bg-white rounded-3xl p-6 border-2 transition duration-300 relative overflow-hidden group
+                            ${milestone.status === 'approved' ? 'border-green-100' : 
+                              milestone.status === 'submitted' ? 'border-blue-200 bg-blue-50/20' : 
+                              milestone.status === 'rejected' ? 'border-red-100' : 'border-gray-100'}`}
+                        >
+                           <div className="absolute top-0 right-0 p-4">
+                              <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border
+                                ${milestone.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' : 
+                                  milestone.status === 'submitted' ? 'bg-blue-600 text-white border-blue-700 animate-pulse' : 
+                                  milestone.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
+                              >
+                                {milestone.status}
+                              </span>
+                           </div>
+
+                           <div className="flex items-start gap-5">
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shrink-0
+                                ${milestone.status === 'approved' ? 'bg-green-600 text-white' : 'bg-slate-900 text-white'}`}
+                              >
+                                {milestone.milestone_number}
+                              </div>
+                              <div className="flex-1">
+                                 <h4 className="text-lg font-extrabold text-gray-900 mb-1">{milestone.title}</h4>
+                                 <p className="text-gray-500 text-sm leading-relaxed mb-4 max-w-xl">{milestone.description}</p>
+                                 
+                                 <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-500 mb-6">
+                                    <div className="flex items-center"><Calendar className="w-3.5 h-3.5 mr-1.5" /> DUE {new Date(milestone.due_date).toLocaleDateString()}</div>
+                                    <div className="flex items-center"><DollarSign className="w-3.5 h-3.5 mr-1.5" /> ${milestone.payment_amount.toLocaleString()}</div>
+                                 </div>
+
+                                 {milestone.status === 'submitted' && (
+                                   <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                     <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center space-x-2">
+                                           <Shield className="w-5 h-5 text-blue-600" />
+                                           <span className="text-sm font-black text-gray-900 uppercase">Verification Hub</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-bold uppercase">Pending Audit</span>
+                                     </div>
+                                     <p className="text-xs text-gray-600 mb-6 leading-relaxed">
+                                        Verified deliverables have been uploaded by the CRO. Please review the documentation and certify completion to release payment.
+                                     </p>
+                                     
+                                     {canVerify && (
+                                       <div className="flex space-x-3">
+                                          <button 
+                                            onClick={() => handleUpdateMilestoneStatus(milestone.id, 'approved')}
+                                            disabled={submitting}
+                                            className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition flex items-center justify-center disabled:opacity-50"
+                                          >
+                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                            VERIFY & RELEASE
+                                          </button>
+                                          <button 
+                                            onClick={() => {
+                                              const reason = prompt('Reason for rejection:');
+                                              if (reason) handleUpdateMilestoneStatus(milestone.id, 'rejected', reason);
+                                            }}
+                                            disabled={submitting}
+                                            className="px-6 border-2 border-slate-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-slate-50 transition flex items-center justify-center disabled:opacity-50"
+                                          >
+                                            <XCircle className="w-4 h-4 mr-2" />
+                                            REJECT
+                                          </button>
+                                       </div>
+                                     )}
+                                   </div>
+                                 )}
+
+                                 {milestone.status === 'in_progress' && profile?.role !== 'sponsor' && (
+                                   <div className="mt-4">
+                                     <button 
+                                       onClick={() => handleUpdateMilestoneStatus(milestone.id, 'submitted')}
+                                       disabled={submitting}
+                                       className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center disabled:opacity-50 shadow-lg shadow-blue-100"
+                                     >
+                                       <FileText className="w-4 h-4 mr-2" />
+                                       SUBMIT DELIVERABLES
+                                     </button>
+                                   </div>
+                                 )}
+
+                                 {milestone.status === 'rejected' && milestone.rejection_reason && (
+                                   <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mt-2">
+                                      <p className="text-xs font-black text-red-600 uppercase mb-1 flex items-center">
+                                        <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
+                                        Rejection Logic
+                                      </p>
+                                      <p className="text-sm text-red-800 italic">{milestone.rejection_reason}</p>
+                                   </div>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
+              )}
 
-                <div className="space-y-4">
-                  {milestones.length === 0 ? (
-                    <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center text-gray-500 font-medium italic">
-                      No milestones mapped to this project registry.
+              {/* Specifications View */}
+              {activeTab === 'specifications' && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-300">
+                  <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <Settings className="w-6 h-6 text-indigo-500" />
+                      <h3 className="text-xl font-black text-gray-900">Study Design Parameters</h3>
                     </div>
-                  ) : (
-                    milestones.map((milestone, idx) => (
-                      <div 
-                        key={milestone.id} 
-                        className={`bg-white rounded-3xl p-6 border-2 transition duration-300 relative overflow-hidden group
-                          ${milestone.status === 'approved' ? 'border-green-100' : 
-                            milestone.status === 'submitted' ? 'border-blue-200 bg-blue-50/20' : 
-                            milestone.status === 'rejected' ? 'border-red-100' : 'border-gray-100'}`}
-                      >
-                         <div className="absolute top-0 right-0 p-4">
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border
-                              ${milestone.status === 'approved' ? 'bg-green-100 text-green-700 border-green-200' : 
-                                milestone.status === 'submitted' ? 'bg-blue-600 text-white border-blue-700 animate-pulse' : 
-                                milestone.status === 'rejected' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
-                            >
-                              {milestone.status}
-                            </span>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="space-y-6">
+                         <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Study Classification</p>
+                            <p className="text-lg font-bold text-slate-800">{project.rfp?.study_type || 'Custom Professional Study'}</p>
                          </div>
-
-                         <div className="flex items-start gap-5">
-                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shrink-0
-                              ${milestone.status === 'approved' ? 'bg-green-600 text-white' : 'bg-slate-900 text-white'}`}
-                            >
-                              {milestone.milestone_number}
-                            </div>
-                            <div className="flex-1">
-                               <h4 className="text-lg font-extrabold text-gray-900 mb-1">{milestone.title}</h4>
-                               <p className="text-gray-500 text-sm leading-relaxed mb-4 max-w-xl">{milestone.description}</p>
-                               
-                               <div className="flex flex-wrap gap-4 text-xs font-bold text-gray-500 mb-6">
-                                  <div className="flex items-center"><Calendar className="w-3.5 h-3.5 mr-1.5" /> DUE {new Date(milestone.due_date).toLocaleDateString()}</div>
-                                  <div className="flex items-center"><DollarSign className="w-3.5 h-3.5 mr-1.5" /> ${milestone.payment_amount.toLocaleString()}</div>
-                               </div>
-
-                               {milestone.status === 'submitted' && (
-                                 <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                   <div className="flex items-center justify-between mb-4">
-                                      <div className="flex items-center space-x-2">
-                                         <Shield className="w-5 h-5 text-blue-600" />
-                                         <span className="text-sm font-black text-gray-900 uppercase">Verification Hub</span>
-                                      </div>
-                                      <span className="text-[10px] text-gray-400 font-bold uppercase">Pending Audit</span>
-                                   </div>
-                                   <p className="text-xs text-gray-600 mb-6 leading-relaxed">
-                                      Verified deliverables have been uploaded by the CRO. Please review the documentation and certify completion to release payment.
-                                   </p>
-                                   
-                                   {canVerify && (
-                                     <div className="flex space-x-3">
-                                        <button 
-                                          onClick={() => handleUpdateMilestoneStatus(milestone.id, 'approved')}
-                                          disabled={submitting}
-                                          className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition flex items-center justify-center disabled:opacity-50"
-                                        >
-                                          <CheckCircle className="w-4 h-4 mr-2" />
-                                          VERIFY & RELEASE
-                                        </button>
-                                        <button 
-                                          onClick={() => {
-                                            const reason = prompt('Reason for rejection:');
-                                            if (reason) handleUpdateMilestoneStatus(milestone.id, 'rejected', reason);
-                                          }}
-                                          disabled={submitting}
-                                          className="px-6 border-2 border-slate-200 text-gray-600 py-3 rounded-xl font-bold hover:bg-slate-50 transition flex items-center justify-center disabled:opacity-50"
-                                        >
-                                          <XCircle className="w-4 h-4 mr-2" />
-                                          REJECT
-                                        </button>
-                                     </div>
-                                   )}
-                                 </div>
-                               )}
-
-                               {milestone.status === 'in_progress' && profile?.role !== 'sponsor' && (
-                                 <div className="mt-4">
-                                   <button 
-                                     onClick={() => handleUpdateMilestoneStatus(milestone.id, 'submitted')}
-                                     disabled={submitting}
-                                     className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition flex items-center justify-center disabled:opacity-50 shadow-lg shadow-blue-100"
-                                   >
-                                     <FileText className="w-4 h-4 mr-2" />
-                                     SUBMIT DELIVERABLES
-                                   </button>
-                                 </div>
-                               )}
-
-                               {milestone.status === 'rejected' && milestone.rejection_reason && (
-                                 <div className="bg-red-50 border border-red-100 rounded-2xl p-4 mt-2">
-                                    <p className="text-xs font-black text-red-600 uppercase mb-1 flex items-center">
-                                      <AlertTriangle className="w-3.5 h-3.5 mr-1.5" />
-                                      Rejection Logic
-                                    </p>
-                                    <p className="text-sm text-red-800 italic">{milestone.rejection_reason}</p>
-                                 </div>
-                               )}
+                         <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Molecule / Asset Type</p>
+                            <p className="text-lg font-bold text-slate-800">{project.rfp?.molecule_type || 'N/A'}</p>
+                         </div>
+                       </div>
+                       <div className="space-y-6">
+                         <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Therapeutic Target</p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                               {project.rfp?.target_geography?.map((g: string) => (
+                                 <span key={g} className="px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg text-xs font-bold text-slate-600">
+                                   {g}
+                                 </span>
+                               ))}
                             </div>
                          </div>
-                      </div>
-                    ))
-                  )}
+                         <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Regulatory Oversight</p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                               {project.rfp?.regulatory_authorities?.map((r: string) => (
+                                 <span key={r} className="px-3 py-1 bg-indigo-50 border border-indigo-100 rounded-lg text-xs font-bold text-indigo-600">
+                                   {r}
+                                 </span>
+                               ))}
+                            </div>
+                         </div>
+                       </div>
+                    </div>
+
+                    <div className="mt-10 pt-8 border-t border-slate-50">
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Core Requirements & Protocol Vision</p>
+                       <p className="text-slate-600 leading-relaxed text-sm bg-slate-50 p-6 rounded-2xl italic">
+                          "{project.rfp?.description}"
+                       </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Documents Repository */}
+              {activeTab === 'documents' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                      <div>
+                         <h3 className="text-xl font-black text-gray-900">Design Documents</h3>
+                         <p className="text-sm text-gray-500">Secured GxP compliant protocol repository</p>
+                      </div>
+                      <label className="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center shadow-lg active:scale-95">
+                        <Upload className="w-4 h-4 mr-2" />
+                        <span>{uploading ? 'Uploading...' : 'Upload Design'}</span>
+                        <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {documents.length === 0 ? (
+                        <div className="md:col-span-2 py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">
+                          <FileCode className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                          <p className="text-sm text-slate-500 font-medium">No design protocols uploaded yet.</p>
+                        </div>
+                      ) : (
+                        documents.map((doc) => (
+                          <div key={doc.id} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between group hover:bg-white hover:shadow-md transition">
+                             <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+                                   <FileText className="w-5 h-5" />
+                                </div>
+                                <div>
+                                   <p className="text-sm font-bold text-gray-900 truncate max-w-[150px]">{doc.file_name}</p>
+                                   <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">
+                                      {new Date(doc.created_at).toLocaleDateString()} · Protocol
+                                   </p>
+                                </div>
+                             </div>
+                             <a 
+                               href={doc.file_url} 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="p-2 text-slate-400 hover:text-blue-600 transition"
+                             >
+                                <ExternalLink className="w-5 h-5" />
+                             </a>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sidebar Details */}

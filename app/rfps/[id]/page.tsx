@@ -8,7 +8,6 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { FileText, Calendar, MapPin, DollarSign, Users, Clock, Building2, ArrowLeft, Send, AlertCircle, CheckCircle } from 'lucide-react';
-
 interface RFP {
   id: string; rfp_number: string; title: string; description: string;
   study_type: string; requirement_category: string;

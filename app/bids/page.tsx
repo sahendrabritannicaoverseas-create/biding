@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Layout } from '@/components/Layout';
@@ -25,10 +24,53 @@ function BidsContent() {
   const fetchBids = async () => {
     if (!profile?.company_id) return;
     try {
-      const { data, error } = await supabase.from('bids').select(`*, rfp:rfps (rfp_number, title, study_type, submission_deadline, status)`).eq('vendor_company_id', profile.company_id).order('submitted_at', { ascending: false });
-      if (error) throw error;
-      setBids(data || []);
-    } catch (error) { console.error('Error fetching bids:', error); } finally { setLoading(false); }
+      // Step 1: Fetch bids without the JOIN to avoid RLS 500 errors
+      const { data: bidsData, error: bidsError } = await supabase
+        .from('bids')
+        .select('*')
+        .eq('vendor_company_id', profile.company_id)
+        .order('submitted_at', { ascending: false });
+
+      if (bidsError) {
+        console.error('Bids fetch error:', bidsError.message, bidsError.code, bidsError.details, bidsError.hint);
+        throw bidsError;
+      }
+
+      if (!bidsData || bidsData.length === 0) {
+        setBids([]);
+        return;
+      }
+
+      // Step 2: Fetch the related RFPs separately using the rfp_ids
+      const rfpIds = [...new Set(bidsData.map((b: any) => b.rfp_id))];
+      const { data: rfpsData, error: rfpsError } = await supabase
+        .from('rfps')
+        .select('id, rfp_number, title, study_type, submission_deadline, status')
+        .in('id', rfpIds);
+
+      if (rfpsError) {
+        console.error('RFPs fetch error:', rfpsError.message, rfpsError.code, rfpsError.details, rfpsError.hint);
+        // Don't throw — show bids even if RFP details fail
+      }
+
+      // Step 3: Merge rfp data into each bid
+      const rfpMap: Record<string, any> = {};
+      (rfpsData || []).forEach((rfp: any) => { rfpMap[rfp.id] = rfp; });
+
+      const mergedBids = bidsData.map((bid: any) => ({
+        ...bid,
+        rfp: rfpMap[bid.rfp_id] || {
+          rfp_number: 'N/A', title: 'Unknown RFP',
+          study_type: '', submission_deadline: '', status: ''
+        },
+      }));
+
+      setBids(mergedBids);
+    } catch (error: any) {
+      console.error('Error fetching bids:', error?.message || error?.code || JSON.stringify(error));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusConfig = (status: string) => {
@@ -109,7 +151,7 @@ function BidsContent() {
                         <div className="flex items-center space-x-2 text-gray-600"><StatusIcon className={`w-4 h-4 ${statusConfig.iconColor}`} /><span>RFP {bid.rfp.status}</span></div>
                       </div>
                     </div>
-                    <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-4 mt-1" />
+                    <ArrowRight className="w-5 h-5 text-gray-400 shrink-0 ml-4 mt-1" />
                   </div>
                 </Link>
               );

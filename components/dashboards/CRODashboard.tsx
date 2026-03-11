@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
@@ -62,7 +61,7 @@ export function CRODashboard() {
                   <p className="text-sm text-gray-600 mt-1">{rfp.study_type} • {rfp.target_geography?.join(', ')}</p>
                   <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500"><span>RFP #{rfp.rfp_number}</span><span>•</span><span>{rfp.bids_count || 0} bids</span><span>•</span><span>Deadline: {new Date(rfp.submission_deadline).toLocaleDateString()}</span></div>
                 </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-4" />
+                <ArrowRight className="w-5 h-5 text-gray-400 shrink-0 ml-4" />
               </div>
             </Link>
           ))}

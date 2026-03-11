@@ -20,7 +20,9 @@ import {
   Activity,
   ArrowRight,
   ShieldCheck,
-  Building2
+  Building2,
+  Plus,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -44,10 +46,90 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [sponsors, setSponsors] = useState<{id: string, company_name: string}[]>([]);
+  const [cros, setCros] = useState<{id: string, company_name: string}[]>([]);
+  const [newProject, setNewProject] = useState({
+    title: '',
+    sponsor_company_id: '',
+    cro_company_id: '',
+    contract_value: 0,
+    currency: 'USD',
+    start_date: new Date().toISOString().split('T')[0],
+    expected_end_date: '',
+    status: 'active' as const
+  });
 
   useEffect(() => {
     fetchProjects();
+    if (profile?.role === 'admin' || profile?.role === 'sponsor') {
+      fetchCompanies();
+    }
   }, [profile]);
+
+  const fetchCompanies = async () => {
+    try {
+      const { data: sponsorsData } = await supabase
+        .from('sponsor_companies')
+        .select('id, company_name')
+        .eq('verification_status', 'verified');
+      
+      const { data: crosData } = await supabase
+        .from('cro_companies')
+        .select('id, company_name')
+        .eq('verification_status', 'verified');
+
+      setSponsors(sponsorsData || []);
+      setCros(crosData || []);
+
+      // Pre-select sponsor if user is a sponsor
+      if (profile?.role === 'sponsor' && profile.company_id) {
+        setNewProject(prev => ({ ...prev, sponsor_company_id: profile.company_id! }));
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+    }
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProject.title || !newProject.sponsor_company_id || !newProject.cro_company_id) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const projectNumber = `PRJ-${Date.now().toString().slice(-6)}`;
+      const { error } = await supabase.from('projects').insert([{
+        ...newProject,
+        project_number: projectNumber,
+        progress_percentage: 0,
+        created_at: new Date().toISOString()
+      }]);
+
+      if (error) throw error;
+
+      setIsModalOpen(false);
+      setNewProject({
+        title: '',
+        sponsor_company_id: profile?.role === 'sponsor' ? profile.company_id! : '',
+        cro_company_id: '',
+        contract_value: 0,
+        currency: 'USD',
+        start_date: new Date().toISOString().split('T')[0],
+        expected_end_date: '',
+        status: 'active'
+      });
+      fetchProjects();
+    } catch (error) {
+      console.error('Error creating project:', error);
+      alert('Failed to create project');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const fetchProjects = async () => {
     if (!profile) return;
@@ -118,7 +200,7 @@ export default function ProjectsPage() {
                  >
                    All
                  </button>
-                 <button 
+                 <button
                   onClick={() => setStatusFilter('active')}
                   className={`px-3 py-1 text-sm font-medium rounded-md transition ${statusFilter === 'active' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
                  >
@@ -127,13 +209,21 @@ export default function ProjectsPage() {
                  <button 
                   onClick={() => setStatusFilter('completed')}
                   className={`px-3 py-1 text-sm font-medium rounded-md transition ${statusFilter === 'completed' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
-                 >
-                   Completed
-                 </button>
-               </div>
-            </div>
+                  >
+                    Completed
+                  </button>
+                </div>
+                {(profile?.role === 'admin' || profile?.role === 'sponsor') && (
+                  <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition shadow-sm font-bold text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Project</span>
+                  </button>
+                )}
+             </div> 
           </div>
-
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200">
@@ -293,7 +383,6 @@ export default function ProjectsPage() {
               </table>
             </div>
           </div>
-
           <div className="bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-8 text-white flex flex-col md:flex-row items-center justify-between gap-8 border border-white/10 shadow-xl shadow-slate-200/50">
              <div className="space-y-4 text-center md:text-left">
                <div className="flex items-center justify-center md:justify-start space-x-2">
@@ -329,6 +418,142 @@ export default function ProjectsPage() {
                </div>
              </div>
           </div>
+
+          {/* Create Project Modal */}
+          {isModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-blue-600 p-2 rounded-xl text-white">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">Initiate New Project</h2>
+                      <p className="text-xs text-gray-500 font-medium">Define project parameters and partners</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setIsModalOpen(false)}
+                    className="p-2 hover:bg-gray-200 rounded-full transition text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCreateProject} className="p-8 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Project Title *</label>
+                      <input 
+                        type="text" 
+                        required
+                        value={newProject.title}
+                        onChange={e => setNewProject({...newProject, title: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition outline-none"
+                        placeholder="e.g., Phase II Oncology Study"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Sponsor Partner *</label>
+                      <select 
+                        required
+                        disabled={profile?.role === 'sponsor'}
+                        value={newProject.sponsor_company_id}
+                        onChange={e => setNewProject({...newProject, sponsor_company_id: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition outline-none disabled:opacity-60"
+                      >
+                        <option value="">Select Sponsor</option>
+                        {sponsors.map(s => (
+                          <option key={s.id} value={s.id}>{s.company_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">CRO / Service Provider *</label>
+                      <select 
+                        required
+                        value={newProject.cro_company_id}
+                        onChange={e => setNewProject({...newProject, cro_company_id: e.target.value})}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition outline-none"
+                      >
+                        <option value="">Select CRO</option>
+                        {cros.map(c => (
+                          <option key={c.id} value={c.id}>{c.company_name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Contract Value ($)</label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input 
+                          type="number" 
+                          value={newProject.contract_value}
+                          onChange={e => setNewProject({...newProject, contract_value: parseFloat(e.target.value)})}
+                          className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition outline-none"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Start Date</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input 
+                          type="date" 
+                          value={newProject.start_date}
+                          onChange={e => setNewProject({...newProject, start_date: e.target.value})}
+                          className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Expected Completion Date</label>
+                      <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input 
+                          type="date" 
+                          value={newProject.expected_end_date}
+                          onChange={e => setNewProject({...newProject, expected_end_date: e.target.value})}
+                          className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white transition outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex items-center gap-4">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsModalOpen(false)}
+                      className="flex-1 px-6 py-4 border border-gray-200 rounded-2xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      disabled={isCreating}
+                      className="flex-2 px-6 py-4 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-200 disabled:opacity-50 flex items-center justify-center space-x-2"
+                    >
+                      {isCreating ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                          <span>Creating...</span>
+                        </>
+                      ) : (
+                        <span>Create Project</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </Layout>
     </ProtectedRoute>

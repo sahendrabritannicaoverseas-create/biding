@@ -130,7 +130,6 @@ export default function CompaniesSeparatedPage() {
       </Layout>
     );
   }
-
   return (
     <Layout>
       <div className="min-h-screen pb-20">
@@ -149,7 +148,6 @@ export default function CompaniesSeparatedPage() {
             </div>
           </div>
         </section>
-
         {/* Separated Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 space-y-20">
           {(Object.keys(companyTypeConfig) as CompanyType[]).map((type) => {

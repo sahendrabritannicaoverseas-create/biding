@@ -82,7 +82,7 @@ export default function AdminRFPsPage() {
       });
 
       if (!res.ok) {
-        console.error('Failed to fetch RFPs:', res.status);
+        console.error('Failed to fetch RFPs:', res.status, res.statusText);
         return;
       }
 

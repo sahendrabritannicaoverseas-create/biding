@@ -44,6 +44,7 @@ function MyRFPsContent() {
   const fetchRFPs = async () => {
     if (!profile?.company_id) return;
     try {
+      // Fetch RFPs owned by the sponsor's company
       const { data: rfpData, error: rfpError } = await supabase
         .from('rfps')
         .select('*')
@@ -51,28 +52,27 @@ function MyRFPsContent() {
         .order('created_at', { ascending: false });
 
       if (rfpError) {
-        console.error('Error fetching RFPs:', {
-          message: rfpError.message,
-          code: rfpError.code,
-          details: rfpError.details,
-          hint: rfpError.hint,
-          profile_company_id: profile.company_id,
-        });
         throw rfpError;
       }
 
+      // Fetch bid counts for each RFP
       const rfpsWithBidCounts = await Promise.all((rfpData || []).map(async rfp => {
         const { count, error: bidError } = await supabase
           .from('bids')
           .select('*', { count: 'exact', head: true })
           .eq('rfp_id', rfp.id);
-        if (bidError) console.warn('Could not fetch bid count for rfp', rfp.id, bidError.message);
+        
+        if (bidError) {
+          console.warn(`Could not fetch bid count for rfp ${rfp.id}:`, bidError.message);
+        }
+        
         return { ...rfp, bid_count: count || 0 };
       }));
 
       setRfps(rfpsWithBidCounts);
     } catch (error: any) {
-      console.error('Error fetching RFPs:', error?.message ?? error);
+      console.error('CRITICAL: Error fetching RFPs:', error?.message || error?.code || 'Unknown Error', error);
+      // Optional: Set an error state here to show in the UI if needed
     } finally {
       setLoading(false);
     }

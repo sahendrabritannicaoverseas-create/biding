@@ -71,7 +71,38 @@ function RFPBidReviewContent({ id }: { id: string }) {
     setActionLoading(bidId + newStatus);
     try {
       await supabase.from('bids').update({ status: newStatus }).eq('id', bidId);
+      
       if (newStatus === 'awarded') {
+        const awardedBid = bids.find(b => b.id === bidId) as any;
+        if (awardedBid) {
+          const projectNumber = `PRJ-${Date.now().toString().slice(-6)}`;
+          
+          // Calculate end date based on timeline months
+          let expectedEndDate = null;
+          if (awardedBid.estimated_timeline_months) {
+            const date = new Date();
+            date.setMonth(date.getMonth() + awardedBid.estimated_timeline_months);
+            expectedEndDate = date.toISOString().split('T')[0];
+          }
+
+          const { error: projectError } = await supabase.from('projects').insert([{
+            title: rfp.title,
+            project_number: projectNumber,
+            sponsor_company_id: rfp.sponsor_company_id,
+            cro_company_id: awardedBid.vendor_company_id,
+            contract_value: awardedBid.bid_amount,
+            currency: 'USD',
+            start_date: new Date().toISOString().split('T')[0],
+            expected_end_date: expectedEndDate,
+            status: 'active',
+            progress_percentage: 0
+          }]);
+
+          if (projectError) {
+            console.error('Error creating project:', projectError);
+          }
+        }
+
         await supabase.from('rfps').update({ status: 'awarded' }).eq('id', id);
         await supabase.from('bids').update({ status: 'rejected' }).eq('rfp_id', id).neq('id', bidId);
       }

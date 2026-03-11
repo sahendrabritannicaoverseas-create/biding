@@ -19,7 +19,7 @@ export function LabDashboard() {
     try {
       const { data: rfpsData } = await supabase.from('rfps').select('*').eq('status', 'active').in('requirement_category', ['lab_testing', 'bioanalysis', 'stability_testing']).order('created_at', { ascending: false }).limit(5);
       const { data: bidsData } = await supabase.from('bids').select('*').eq('vendor_company_id', profile.company_id).in('status', ['submitted', 'shortlisted', 'bafo_requested', 'bafo_submitted']);
-      const { data: projectsData } = await supabase.from('projects').select('*').eq('vendor_company_id', profile.company_id).eq('status', 'active');
+      const { data: projectsData } = await supabase.from('projects').select('*').eq('cro_company_id', profile.company_id).eq('status', 'active');
       setStats({ availableOpportunities: rfpsData?.length || 0, activeBids: bidsData?.length || 0, activeContracts: projectsData?.length || 0, totalRevenue: projectsData?.reduce((sum, p) => sum + Number(p.contract_value), 0) || 0 });
       setRecentRFPs(rfpsData || []);
     } catch (error) { console.error('Error fetching dashboard data:', error); } finally { setLoading(false); }
@@ -57,7 +57,7 @@ export function LabDashboard() {
             <Link key={rfp.id} href={`/rfps/${rfp.id}`} className="p-6 hover:bg-gray-50 transition block">
               <div className="flex justify-between items-start">
                 <div className="flex-1"><div className="flex items-center space-x-3"><h3 className="font-semibold text-gray-900">{rfp.title}</h3><span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Open</span></div><p className="text-sm text-gray-600 mt-1">{rfp.study_type} • {rfp.target_geography?.join(', ')}</p><div className="flex items-center space-x-4 mt-3 text-sm text-gray-500"><span>RFP #{rfp.rfp_number}</span><span>•</span><span>Deadline: {new Date(rfp.submission_deadline).toLocaleDateString()}</span></div></div>
-                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0 ml-4" />
+                <ArrowRight className="w-5 h-5 text-gray-400 shrink-0 ml-4" />
               </div>
             </Link>
           ))}
